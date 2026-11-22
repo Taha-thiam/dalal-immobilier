@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ProprietaireController extends Controller
@@ -55,7 +54,8 @@ class ProprietaireController extends Controller
             'rib_reversement' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $motDePasse = Str::password(10, symbols: false);
+        // Mot de passe par défaut, identique pour tous : à changer à la première connexion
+        $motDePasse = User::MOT_DE_PASSE_DEFAUT;
 
         $proprietaire = DB::transaction(function () use ($donnees, $motDePasse, $request) {
             $user = User::create([
@@ -82,7 +82,7 @@ class ProprietaireController extends Controller
         return response()->json([
             'message' => 'Propriétaire créé avec succès.',
             'proprietaire' => $this->formater($proprietaire->load('user')->loadCount('biens')),
-            // Temporaire : en attendant l'envoi par email, on affiche le mot de passe une seule fois
+            // Affiché au gestionnaire pour qu'il le communique au propriétaire
             'mot_de_passe_temporaire' => $motDePasse,
         ], 201);
     }

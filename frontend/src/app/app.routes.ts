@@ -29,6 +29,12 @@ export const routes: Routes = [
         title: 'Connexion — Dalal Immobilier',
         loadComponent: () => import('./pages/connexion/connexion').then((m) => m.Connexion),
     },
+    {
+        path: 'mot-de-passe-oublie',
+        canActivate: [invitesGuard],
+        title: 'Mot de passe oublié — Dalal Immobilier',
+        loadComponent: () => import('./pages/connexion/mot-de-passe-oublie').then((m) => m.MotDePasseOublie),
+    },
 
     // ===================== ESPACE CONNECTÉ (cadre menu + contenu) =====================
     {
@@ -46,6 +52,17 @@ export const routes: Routes = [
             { path: 'admin/parametres', canActivate: [roleGuard], data: { ...ADMIN, onglet: 'parametres' }, loadComponent: administration },
             { path: 'admin/journal', canActivate: [roleGuard], data: { ...ADMIN, onglet: 'journal' }, loadComponent: administration },
 
+            // ----- Pour tous les utilisateurs connectés -----
+            {
+                path: 'mon-mot-de-passe',
+                title: 'Mon mot de passe — Dalal Immobilier',
+                loadComponent: () => import('./pages/compte/mon-mot-de-passe').then((m) => m.MonMotDePasse),
+            },
+            {
+                path: 'admin/mots-de-passe',
+                canActivate: [roleGuard], data: ADMIN,
+                loadComponent: () => import('./pages/admin/mots-de-passe').then((m) => m.MotsDePasse),
+            },
             // ----- Gestion du patrimoine -----
             {
                 path: 'gestion/proprietaires',

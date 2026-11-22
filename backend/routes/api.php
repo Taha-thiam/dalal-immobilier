@@ -25,6 +25,8 @@ use App\Http\Controllers\Api\TableauBordController;
 */
 // 5 tentatives de connexion par minute maximum (protection contre le forçage de mot de passe)
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+// Mot de passe oublié : 3 demandes par minute maximum
+Route::post('/mot-de-passe-oublie', [AuthController::class, 'motDePasseOublie'])->middleware('throttle:3,1');
 
 // ===================== PORTAIL PUBLIC (sans connexion) =====================
 Route::prefix('public')->group(function () {
@@ -53,6 +55,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Compte connecté
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    // Chaque utilisateur change son propre mot de passe
+    Route::put('/mot-de-passe', [AuthController::class, 'changerMotDePasse']);
 
     // Tableau de bord : le contenu s'adapte au rôle connecté
     Route::get('/tableau-de-bord', [TableauBordController::class, 'index'])
@@ -66,6 +70,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('personnel/{user}/statut', [AdminController::class, 'basculerStatut']);
         Route::post('personnel/{user}/mot-de-passe', [AdminController::class, 'reinitialiserMotDePasse']);
 
+        // Mots de passe : tous les comptes + demandes « mot de passe oublié »
+        Route::get('utilisateurs', [AdminController::class, 'utilisateurs']);
+        Route::post('utilisateurs/{user}/mot-de-passe', [AdminController::class, 'reinitialiserMotDePasse']);
+        Route::get('demandes-mot-de-passe', [AdminController::class, 'demandesMotDePasse']);
+        Route::get('demandes-mot-de-passe/compteur', [AdminController::class, 'compteurDemandesMotDePasse']);
+        Route::patch('demandes-mot-de-passe/{demande}/rejet', [AdminController::class, 'rejeterDemande']);
         // Paramètres de l'agence
         Route::get('parametres', [AdminController::class, 'parametres']);
         Route::put('parametres', [AdminController::class, 'enregistrerParametres']);

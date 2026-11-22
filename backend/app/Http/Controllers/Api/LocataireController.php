@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class LocataireController extends Controller
@@ -25,23 +24,23 @@ class LocataireController extends Controller
         $locataires = Locataire::with('user')
             ->withCount([
                 'baux',
-                'baux as baux_actifs_count' => fn ($q) => $q->where('statut', 'actif'),
+                'baux as baux_actifs_count' => fn($q) => $q->where('statut', 'actif'),
             ])
             ->when($recherche !== '', function ($requete) use ($recherche) {
                 $requete->where(function ($w) use ($recherche) {
                     $w->where('numero_cni', 'ilike', "%{$recherche}%")
-                      ->orWhereHas('user', function ($u) use ($recherche) {
-                          $u->where('nom', 'ilike', "%{$recherche}%")
-                            ->orWhere('prenom', 'ilike', "%{$recherche}%")
-                            ->orWhere('email', 'ilike', "%{$recherche}%")
-                            ->orWhere('telephone', 'ilike', "%{$recherche}%");
-                      });
+                        ->orWhereHas('user', function ($u) use ($recherche) {
+                            $u->where('nom', 'ilike', "%{$recherche}%")
+                                ->orWhere('prenom', 'ilike', "%{$recherche}%")
+                                ->orWhere('email', 'ilike', "%{$recherche}%")
+                                ->orWhere('telephone', 'ilike', "%{$recherche}%");
+                        });
                 });
             })
             ->latest()
             ->paginate(10);
 
-        $locataires->getCollection()->transform(fn ($l) => $this->formater($l));
+        $locataires->getCollection()->transform(fn($l) => $this->formater($l));
 
         return response()->json($locataires);
     }
@@ -60,7 +59,8 @@ class LocataireController extends Controller
             'profession' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $motDePasse = Str::password(10, symbols: false);
+        // Mot de passe par défaut, identique pour tous : à changer à la première connexion
+        $motDePasse = User::MOT_DE_PASSE_DEFAUT;
 
         $locataire = DB::transaction(function () use ($donnees, $motDePasse, $request) {
             $user = User::create([
@@ -86,7 +86,7 @@ class LocataireController extends Controller
         return response()->json([
             'message' => 'Locataire créé avec succès.',
             'locataire' => $this->formater($this->recharger($locataire)),
-            // Temporaire : en attendant l'envoi par email, on affiche le mot de passe une seule fois
+            // Affiché au gestionnaire pour qu'il le communique au locataire
             'mot_de_passe_temporaire' => $motDePasse,
         ], 201);
     }
@@ -97,10 +97,10 @@ class LocataireController extends Controller
     public function show(Locataire $locataire): JsonResponse
     {
         $locataire = $this->recharger($locataire);
-        $locataire->load(['baux' => fn ($q) => $q->with('bien')->latest('date_debut')]);
+        $locataire->load(['baux' => fn($q) => $q->with('bien')->latest('date_debut')]);
 
         return response()->json($this->formater($locataire) + [
-            'baux' => $locataire->baux->map(fn ($b) => [
+            'baux' => $locataire->baux->map(fn($b) => [
                 'id' => $b->id,
                 'numero' => $b->numero,
                 'statut' => $b->statut,
@@ -179,7 +179,7 @@ class LocataireController extends Controller
     {
         return $l->fresh('user')->loadCount([
             'baux',
-            'baux as baux_actifs_count' => fn ($q) => $q->where('statut', 'actif'),
+            'baux as baux_actifs_count' => fn($q) => $q->where('statut', 'actif'),
         ]);
     }
 

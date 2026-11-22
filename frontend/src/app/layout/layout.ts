@@ -12,6 +12,7 @@ interface EntreeMenu {
 
 /** Menu complet de l'application : chaque rôle ne voit que ses entrées. */
 const MENU: EntreeMenu[] = [
+  { libelle: 'Mots de passe', lien: '/admin/mots-de-passe', roles: ['administrateur'], disponible: true },
   // Administrateur
   { libelle: 'Tableau de bord', lien: '/admin', roles: ['administrateur'], disponible: true },
   { libelle: 'Comptes du personnel', lien: '/admin/comptes', roles: ['administrateur'], disponible: true },
@@ -100,10 +101,16 @@ const MENU: EntreeMenu[] = [
               <p class="text-xs text-neon-bleu">{{ libelleRole() }}</p>
             </div>
           </div>
+                    <a routerLink="/mon-mot-de-passe" (click)="menuOuvert.set(false)"
+             class="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-noir-600 py-2 text-sm font-semibold text-slate-300 transition hover:border-neon-bleu/60 hover:text-neon-bleu">
+            🔑 Mon mot de passe
+            @if (motDePasseParDefaut()) { <span class="h-2 w-2 rounded-full bg-neon-rouge animate-pulse"></span> }
+          </a>
           <button (click)="auth.logout()"
                   class="mt-4 w-full rounded-xl border border-neon-rouge/60 py-2 text-sm font-semibold text-neon-rouge transition hover:bg-neon-rouge/10 hover:glow-rouge">
             Se déconnecter
           </button>
+          
         </div>
       }
     </aside>
@@ -118,6 +125,12 @@ const MENU: EntreeMenu[] = [
         <span class="w-10"></span>
       </header>
 
+            @if (motDePasseParDefaut()) {
+        <a routerLink="/mon-mot-de-passe"
+           class="flex items-center justify-center gap-2 border-b border-neon-rouge/50 bg-neon-rouge/10 px-4 py-2.5 text-sm text-neon-rouge hover:bg-neon-rouge/20">
+          🔐 Vous utilisez le mot de passe par défaut. <span class="font-bold underline">Changez-le maintenant →</span>
+        </a>
+      }
       <main>
         <router-outlet />
       </main>
@@ -139,4 +152,8 @@ export class Layout {
     const role = this.auth.user()?.role;
     return role ? ROLE_LIBELLES[role] : '';
   });
+
+  /** true tant que l'utilisateur garde le mot de passe par défaut « passer » */
+  motDePasseParDefaut = computed(() =>
+    !!(this.auth.user() as unknown as { mot_de_passe_par_defaut?: boolean })?.mot_de_passe_par_defaut);
 }

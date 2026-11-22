@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-connexion',
@@ -76,6 +77,9 @@ import { AuthService } from '../../core/services/auth.service';
                        hover:glow-bleu hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
           {{ chargement() ? 'Connexion en cours…' : 'Se connecter' }}
         </button>
+                <a routerLink="/mot-de-passe-oublie" class="mt-4 block text-center text-sm text-slate-400 transition hover:text-neon-bleu">
+          Mot de passe oublié ?
+        </a>
       </form>
 
       <p class="mt-6 text-center text-xs text-slate-500">
@@ -125,11 +129,11 @@ export class Connexion {
 
   private messageErreur(e: HttpErrorResponse): string {
     switch (e.status) {
-      case 0:   return 'Impossible de joindre le serveur. Vérifiez que l’API Laravel est lancée.';
+      case 0: return 'Impossible de joindre le serveur. Vérifiez que l’API Laravel est lancée.';
       case 422: return e.error?.errors?.email?.[0] ?? 'Email ou mot de passe incorrect.';
       case 403: return e.error?.message ?? 'Votre compte est désactivé.';
       case 429: return 'Trop de tentatives. Patientez une minute avant de réessayer.';
-      default:  return 'Une erreur est survenue. Réessayez plus tard.';
+      default: return 'Une erreur est survenue. Réessayez plus tard.';
     }
   }
 }

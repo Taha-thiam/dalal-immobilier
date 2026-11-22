@@ -18,6 +18,8 @@ class User extends Authenticatable
     public const ROLE_COMPTABLE = 'comptable';
     public const ROLE_PROPRIETAIRE = 'proprietaire';
     public const ROLE_LOCATAIRE = 'locataire';
+    /** Mot de passe donné à tout nouveau compte et après une réinitialisation par l'admin */
+    public const MOT_DE_PASSE_DEFAUT = 'passer';
 
     protected $fillable = [
         'nom',
