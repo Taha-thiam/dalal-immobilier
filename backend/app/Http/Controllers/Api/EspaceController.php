@@ -23,9 +23,11 @@ use Illuminate\Validation\ValidationException;
 class EspaceController extends Controller
 {
     private const EN_ATTENTE = ['declare', 'enregistre'];
+    private const EN_COURS = ['actif', 'en_preavis'];
 
     // =====================================================================
     //                          ESPACE LOCATAIRE
+    //       Un locataire = un compte, mais il peut avoir PLUSIEURS baux
     // =====================================================================
 
     private function locataire(Request $request): Locataire
@@ -33,29 +35,68 @@ class EspaceController extends Controller
         return Locataire::with('user')->where('user_id', $request->user()->id)->firstOrFail();
     }
 
-    /** Le bail en cours (sinon le plus récent). */
-    private function bailDe(Locataire $loc): ?Bail
+    /** Tous ses baux : ceux en cours d'abord, puis les plus récents. */
+    private function bauxDe(Locataire $loc)
     {
         return Bail::with(['bien', 'echeances', 'caution'])
             ->where('locataire_id', $loc->id)
             ->orderByRaw("CASE WHEN statut IN ('actif','en_preavis') THEN 0 ELSE 1 END")
             ->latest('id')
-            ->first();
+            ->get();
     }
 
-    /** GET /mon-espace/locataire */
+    /** Un bail EN COURS de ce locataire (sinon erreur claire). */
+    private function bailEnCours(Locataire $loc, int $bailId): Bail
+    {
+        $bail = Bail::where('id', $bailId)->where('locataire_id', $loc->id)->first();
+
+        if (!$bail) {
+            throw ValidationException::withMessages(['bail_id' => 'Cette location ne fait pas partie de vos baux.']);
+        }
+        if (!in_array($bail->statut, self::EN_COURS, true)) {
+            throw ValidationException::withMessages(['bail_id' => 'Cette location est terminée.']);
+        }
+
+        return $bail;
+    }
+
+    /** GET /mon-espace/locataire?bail_id=3 : liste de ses locations + détail de celle choisie */
     public function locataireTableau(Request $request): JsonResponse
     {
         $loc = $this->locataire($request);
-        $bail = $this->bailDe($loc);
+        $baux = $this->bauxDe($loc);
+        $aujourdhui = now()->toDateString();
+
+        // ---- 1. La liste de ses locations (pour le sélecteur en haut de page) ----
+        $liste = $baux->map(function (Bail $b) use ($aujourdhui) {
+            $retards = $b->echeances->filter(fn($e) => (float) $e->reste_du > 0 && $e->date_limite < $aujourdhui);
+
+            return [
+                'id' => $b->id,
+                'numero' => $b->numero,
+                'statut' => $b->statut,
+                'en_cours' => in_array($b->statut, self::EN_COURS, true),
+                'bien' => $b->bien?->titre,
+                'quartier' => $b->bien?->quartier,
+                'loyer' => (float) $b->loyer_mensuel + (float) ($b->charges ?? 0),
+                'nb_retard' => $retards->count(),
+                'total_retard' => (float) $retards->sum('reste_du'),
+            ];
+        })->values();
+
+        // ---- 2. La location affichée : celle demandée, sinon la première en cours ----
+        $bail = $request->filled('bail_id')
+            ? $baux->firstWhere('id', (int) $request->query('bail_id'))
+            : $baux->first();
+
+        $profil = $loc->user?->only(['nom', 'prenom', 'email', 'telephone']);
 
         if (!$bail) {
-            return response()->json(['locataire' => $loc->user?->only(['nom', 'prenom', 'email', 'telephone']), 'bail' => null]);
+            return response()->json(['locataire' => $profil, 'baux' => $liste, 'bail' => null]);
         }
 
         $idsEcheances = $bail->echeances->pluck('id');
 
-        // Montants « en attente de validation » par échéance
         $enAttente = Paiement::whereIn('echeance_id', $idsEcheances)
             ->whereIn('statut', self::EN_ATTENTE)
             ->groupBy('echeance_id')
@@ -70,13 +111,12 @@ class EspaceController extends Controller
             'reste_du' => (float) $e->reste_du,
             'en_attente' => (float) ($enAttente[$e->id] ?? 0),
             'statut' => $e->statut,
-            'en_retard' => (float) $e->reste_du > 0 && $e->date_limite < now()->toDateString(),
+            'en_retard' => (float) $e->reste_du > 0 && $e->date_limite < $aujourdhui,
         ])->values();
 
         $paiements = Paiement::with(['quittance', 'echeance'])
             ->whereIn('echeance_id', $idsEcheances)
-            ->latest('id')
-            ->get()
+            ->latest('id')->get()
             ->map(fn($p) => [
                 'id' => $p->id,
                 'mois' => $p->echeance?->mois,
@@ -88,8 +128,10 @@ class EspaceController extends Controller
                 'quittance' => $p->quittance?->numero,
             ]);
 
+        // Les signalements de ce bien uniquement
         $signalements = Signalement::with('interventions')
             ->where('locataire_id', $loc->id)
+            ->where('bien_id', $bail->bien_id)
             ->latest('id')->take(10)->get()
             ->map(fn($s) => [
                 'id' => $s->id,
@@ -105,11 +147,13 @@ class EspaceController extends Controller
         $prochaine = $echeances->first(fn($e) => $e['reste_du'] - $e['en_attente'] > 0);
 
         return response()->json([
-            'locataire' => $loc->user?->only(['nom', 'prenom', 'email', 'telephone']),
+            'locataire' => $profil,
+            'baux' => $liste,
             'bail' => [
                 'id' => $bail->id,
                 'numero' => $bail->numero,
                 'statut' => $bail->statut,
+                'en_cours' => in_array($bail->statut, self::EN_COURS, true),
                 'date_debut' => $bail->date_debut,
                 'date_fin' => $bail->date_fin,
                 'date_resiliation' => $bail->date_resiliation,
@@ -128,6 +172,9 @@ class EspaceController extends Controller
                 'total_retard' => $echeances->where('en_retard', true)->sum('reste_du'),
                 'nb_retard' => $echeances->where('en_retard', true)->count(),
                 'total_paye' => $echeances->sum(fn($e) => $e['montant_du'] - $e['reste_du']),
+                // Toutes locations confondues : pour l'alerte globale
+                'retard_global' => $liste->sum('total_retard'),
+                'nb_retard_global' => $liste->sum('nb_retard'),
             ],
             'echeances' => $echeances,
             'paiements' => $paiements,
@@ -135,26 +182,30 @@ class EspaceController extends Controller
         ]);
     }
 
-    /** POST /mon-espace/locataire/paiements : « J'ai payé par Wave » */
+    /** POST /mon-espace/locataire/paiements : il choisit la location ET le mois */
     public function declarerPaiement(Request $request): JsonResponse
     {
         $loc = $this->locataire($request);
-        $bail = $this->bailDe($loc);
 
         $donnees = $request->validate([
+            'bail_id' => ['required', 'integer'],
             'echeance_id' => ['required', 'integer'],
             'montant' => ['required', 'numeric', 'min:100'],
             'mode_paiement' => ['required', 'string', 'max:30'],
             'reference' => ['required', 'string', 'max:100', 'unique:paiements,reference'],
             'date_paiement' => ['required', 'date', 'before_or_equal:today'],
         ], [
+            'bail_id.required' => 'Choisissez la location concernée.',
             'reference.required' => 'Indiquez la référence de la transaction (reçue par SMS).',
             'reference.unique' => 'Cette référence a déjà été déclarée.',
         ]);
 
-        $echeance = $bail?->echeances->firstWhere('id', $donnees['echeance_id']);
+        $bail = $this->bailEnCours($loc, (int) $donnees['bail_id']);
+
+        // Le mois doit appartenir à CETTE location
+        $echeance = Echeance::where('id', $donnees['echeance_id'])->where('bail_id', $bail->id)->first();
         if (!$echeance) {
-            throw ValidationException::withMessages(['echeance_id' => 'Cette échéance ne fait pas partie de votre bail.']);
+            throw ValidationException::withMessages(['echeance_id' => 'Ce mois ne correspond pas à la location choisie.']);
         }
 
         $attente = (float) Paiement::where('echeance_id', $echeance->id)->whereIn('statut', self::EN_ATTENTE)->sum('montant');
@@ -168,6 +219,7 @@ class EspaceController extends Controller
             ]);
         }
 
+        unset($donnees['bail_id']);
         $paiement = new Paiement();
         $paiement->forceFill($donnees + ['statut' => 'declare']);
         if (Schema::hasColumn('paiements', 'bail_id')) {
@@ -176,7 +228,7 @@ class EspaceController extends Controller
         $paiement->save();
 
         return response()->json([
-            'message' => 'Paiement déclaré. Le comptable le vérifie, puis votre quittance sera disponible ici.',
+            'message' => "Paiement déclaré pour {$bail->numero}. Le comptable le vérifie, puis votre quittance sera disponible ici.",
         ], 201);
     }
 
@@ -186,35 +238,36 @@ class EspaceController extends Controller
         $loc = $this->locataire($request);
         $paiement->loadMissing('echeance.bail');
 
-        if ($paiement->echeance?->bail?->locataire_id !== $loc->id) {
+        if ($paiement->echeance?->bail?->locataire_id != $loc->id) {
             abort(403, 'Cette quittance ne vous appartient pas.');
         }
 
         return app(PaiementController::class)->quittance($paiement);
     }
 
-    /** POST /mon-espace/locataire/signalements */
+    /** POST /mon-espace/locataire/signalements : pour la location choisie */
     public function signaler(Request $request, MaintenanceService $service): JsonResponse
     {
-        $bail = $this->bailDe($this->locataire($request));
-        if (!$bail || !in_array($bail->statut, ['actif', 'en_preavis'], true)) {
-            throw ValidationException::withMessages(['bail' => 'Aucun bail en cours : signalement impossible.']);
-        }
+        $loc = $this->locataire($request);
 
         $donnees = $request->validate([
+            'bail_id' => ['required', 'integer'],
             'titre' => ['required', 'string', 'min:3', 'max:150'],
             'description' => ['nullable', 'string', 'max:3000'],
             'categorie' => ['required', Rule::in(Signalement::CATEGORIES)],
             'urgence' => ['required', Rule::in(Signalement::URGENCES)],
-        ]);
+        ], ['bail_id.required' => 'Choisissez le logement concerné.']);
+
+        $bail = $this->bailEnCours($loc, (int) $donnees['bail_id']);
+        unset($donnees['bail_id']);
 
         $s = $service->signaler($donnees + ['bien_id' => $bail->bien_id], $request->user()->id);
 
-        return response()->json(['message' => "Signalement {$s->numero} envoyé. L'agence vous contacte rapidement."], 201);
+        return response()->json(['message' => "Signalement {$s->numero} envoyé pour {$bail->bien?->titre}. L'agence vous contacte rapidement."], 201);
     }
 
     // =====================================================================
-    //                         ESPACE PROPRIÉTAIRE
+    //                         ESPACE PROPRIÉTAIRE (inchangé)
     // =====================================================================
 
     private function proprietaire(Request $request): Proprietaire
@@ -288,7 +341,7 @@ class EspaceController extends Controller
     /** GET /mon-espace/proprietaire/reversements/{reversement}/releve : seulement SES relevés */
     public function monReleve(Request $request, Reversement $reversement)
     {
-        if ($reversement->proprietaire_id !== $this->proprietaire($request)->id) {
+        if ($reversement->proprietaire_id != $this->proprietaire($request)->id) {
             abort(403, 'Ce relevé ne vous appartient pas.');
         }
 
