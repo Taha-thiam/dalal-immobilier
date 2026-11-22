@@ -173,7 +173,24 @@ class PortailController extends Controller
         ]);
 
         unset($donnees['site_web']);
-        MessageContact::create($donnees + ['lu' => false, 'ip' => $request->ip()]);
+
+        $message = new MessageContact();
+        $message->forceFill($donnees + ['lu' => false, 'ip' => $request->ip()]);
+
+        // Les anciennes colonnes de la table reçoivent aussi les valeurs (si elles existent)
+        $anciennes = [
+            'nom_expediteur' => $donnees['nom'],
+            'email_expediteur' => $donnees['email'] ?? null,
+            'telephone_expediteur' => $donnees['telephone'] ?? null,
+            'objet' => $donnees['sujet'] ?? null,
+            'contenu' => $donnees['message'],
+        ];
+        foreach ($anciennes as $colonne => $valeur) {
+            if (Schema::hasColumn('messages_contact', $colonne)) {
+                $message->{$colonne} = $valeur;
+            }
+        }
+        $message->save();
 
         return response()->json(['message' => 'Message envoyé. Merci, nous vous répondons rapidement.'], 201);
     }
