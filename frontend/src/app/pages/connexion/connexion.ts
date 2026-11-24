@@ -1,14 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-connexion',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   template: `
   <div class="relative min-h-screen overflow-hidden bg-noir-950 grid place-items-center px-4">
 
@@ -20,12 +19,14 @@ import { RouterLink } from '@angular/router';
 
       <!-- Logo -->
       <div class="mb-8 text-center">
-        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-neon-rouge text-glow-rouge animate-neon">
-          Gestion immobilière
-        </p>
-        <h1 class="mt-2 text-4xl font-extrabold text-white">
-          Dalal <span class="text-neon-bleu text-glow-bleu">Immobilier</span>
-        </h1>
+        <a routerLink="/" class="inline-block">
+          <p class="text-xs font-semibold uppercase tracking-[0.35em] text-neon-rouge text-glow-rouge animate-neon">
+            Gestion immobilière
+          </p>
+          <h1 class="mt-2 text-4xl font-extrabold text-white">
+            Dalal <span class="text-neon-bleu text-glow-bleu">Immobilier</span>
+          </h1>
+        </a>
       </div>
 
       <!-- Carte du formulaire -->
@@ -77,13 +78,17 @@ import { RouterLink } from '@angular/router';
                        hover:glow-bleu hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
           {{ chargement() ? 'Connexion en cours…' : 'Se connecter' }}
         </button>
-                <a routerLink="/mot-de-passe-oublie" class="mt-4 block text-center text-sm text-slate-400 transition hover:text-neon-bleu">
+
+        <!-- Mot de passe oublié -->
+        <a routerLink="/mot-de-passe-oublie"
+           class="mt-4 block text-center text-sm text-slate-400 transition hover:text-neon-bleu hover:underline">
           Mot de passe oublié ?
         </a>
       </form>
 
       <p class="mt-6 text-center text-xs text-slate-500">
         © Dalal Immobilier — Ici, vous êtes chez vous.
+        <a routerLink="/" class="ml-1 text-neon-bleu hover:underline">Voir les annonces</a>
       </p>
     </div>
   </div>

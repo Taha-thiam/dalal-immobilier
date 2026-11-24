@@ -63,9 +63,7 @@ class AdminController extends Controller
     /** PATCH /admin/personnel/{user}/statut : activer / désactiver */
     public function basculerStatut(Request $request, User $user): JsonResponse
     {
-        if (! in_array($user->role, self::ROLES_PERSONNEL, true)) {
-            abort(403, 'Ce compte appartient à un client : il se gère depuis Propriétaires ou Locataires.');
-        }
+       
         if ($user->id === $request->user()->id) {
             throw ValidationException::withMessages(['statut' => 'Vous ne pouvez pas désactiver votre propre compte.']);
         }

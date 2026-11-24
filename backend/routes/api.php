@@ -73,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Mots de passe : tous les comptes + demandes « mot de passe oublié »
         Route::get('utilisateurs', [AdminController::class, 'utilisateurs']);
         Route::post('utilisateurs/{user}/mot-de-passe', [AdminController::class, 'reinitialiserMotDePasse']);
+        Route::patch('utilisateurs/{user}/statut', [AdminController::class, 'basculerStatut']);
         Route::get('demandes-mot-de-passe', [AdminController::class, 'demandesMotDePasse']);
         Route::get('demandes-mot-de-passe/compteur', [AdminController::class, 'compteurDemandesMotDePasse']);
         Route::patch('demandes-mot-de-passe/{demande}/rejet', [AdminController::class, 'rejeterDemande']);

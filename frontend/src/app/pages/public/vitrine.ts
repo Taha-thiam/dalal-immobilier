@@ -4,13 +4,14 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { Page } from '../../core/models/pagination.model';
+import { HeroFond } from './hero-fond';
 import { Agence, Annonce, CriteresRecherche, Filtres, PortailService } from '../../core/services/portail.service';
 
 @Component({
-    selector: 'app-vitrine',
-    standalone: true,
-    imports: [FormsModule, RouterLink],
-    template: `
+  selector: 'app-vitrine',
+  standalone: true,
+  imports: [FormsModule, RouterLink, HeroFond],
+  template: `
   <div class="min-h-screen bg-noir-950 text-slate-200">
 
     <!-- ======================= EN-TÊTE ======================= -->
@@ -33,15 +34,18 @@ import { Agence, Annonce, CriteresRecherche, Filtres, PortailService } from '../
     </header>
 
     <!-- ======================= BANDEAU ======================= -->
-    <section class="relative overflow-hidden">
-      <!-- Grille et halos néon en fond -->
+         <section class="relative overflow-hidden">
+      <!-- Photo du salon : éclairée par la souris -->
+      <app-hero-fond />
+
+      <!-- Grille et halos néon par-dessus la photo -->
       <div class="pointer-events-none absolute inset-0 opacity-30"
            style="background-image: linear-gradient(#00d9ff22 1px, transparent 1px), linear-gradient(90deg, #00d9ff22 1px, transparent 1px); background-size: 48px 48px; mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);"></div>
       <div class="pointer-events-none absolute -left-32 top-10 h-80 w-80 rounded-full bg-neon-bleu/20 blur-3xl"></div>
       <div class="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-neon-rouge/20 blur-3xl"></div>
 
-      <div class="relative mx-auto max-w-7xl px-4 pb-16 pt-20 text-center md:px-8 md:pt-28">
-        <p class="text-xs font-bold uppercase tracking-[0.4em] text-neon-rouge text-glow-rouge animate-neon">Dalal · « accueillir » en wolof</p>
+      <div class="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-20 text-center md:px-8 md:pt-28">
+    <p class="text-xs font-bold uppercase tracking-[0.4em] text-neon-rouge text-glow-rouge animate-neon">Dalal · « accueillir » en wolof</p>
         <h1 class="mx-auto mt-5 max-w-3xl text-4xl font-extrabold leading-tight text-white md:text-6xl">
           Ici, vous êtes <span class="text-neon-bleu text-glow-bleu">chez vous</span>.
         </h1>
@@ -194,86 +198,86 @@ import { Agence, Annonce, CriteresRecherche, Filtres, PortailService } from '../
   `,
 })
 export class Vitrine implements OnInit {
-    private service = inject(PortailService);
-    auth = inject(AuthService);
+  private service = inject(PortailService);
+  auth = inject(AuthService);
 
-    page = signal<Page<Annonce> | null>(null);
-    filtres = signal<Filtres>({ quartiers: [], types: [] });
-    agence = signal<Agence | null>(null);
-    chargement = signal(true);
+  page = signal<Page<Annonce> | null>(null);
+  filtres = signal<Filtres>({ quartiers: [], types: [] });
+  agence = signal<Agence | null>(null);
+  chargement = signal(true);
 
-    envoi = signal(false);
-    contactOk = signal<string | null>(null);
-    contactErreur = signal<string | null>(null);
+  envoi = signal(false);
+  contactOk = signal<string | null>(null);
+  contactErreur = signal<string | null>(null);
 
-    criteres: CriteresRecherche = { recherche: '', quartier: '', type: '', prix_max: null };
-    contact = { nom: '', email: '', telephone: '', sujet: '', message: '', site_web: '' };
+  criteres: CriteresRecherche = { recherche: '', quartier: '', type: '', prix_max: null };
+  contact = { nom: '', email: '', telephone: '', sujet: '', message: '', site_web: '' };
 
-    budgets = [100_000, 200_000, 300_000, 500_000, 800_000, 1_500_000];
-    annee = new Date().getFullYear();
+  budgets = [100_000, 200_000, 300_000, 500_000, 800_000, 1_500_000];
+  annee = new Date().getFullYear();
 
-    atouts = [
-        { icone: '🔎', titre: 'Logements vérifiés', texte: 'Chaque bien est visité et photographié par notre équipe avant publication.' },
-        { icone: '📄', titre: 'Contrat clair', texte: 'Bail, quittances et état des lieux remis en PDF : tout est traçable.' },
-        { icone: '🛠️', titre: 'Suivi après l’emménagement', texte: 'Une panne ? Signalez-la, nous envoyons un technicien.' },
-    ];
+  atouts = [
+    { icone: '🔎', titre: 'Logements vérifiés', texte: 'Chaque bien est visité et photographié par notre équipe avant publication.' },
+    { icone: '📄', titre: 'Contrat clair', texte: 'Bail, quittances et état des lieux remis en PDF : tout est traçable.' },
+    { icone: '🛠️', titre: 'Suivi après l’emménagement', texte: 'Une panne ? Signalez-la, nous envoyons un technicien.' },
+  ];
 
-    champ = 'w-full rounded-xl border border-noir-600 bg-noir-950/70 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-neon-bleu focus:glow-bleu';
+  champ = 'w-full rounded-xl border border-noir-600 bg-noir-950/70 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-neon-bleu focus:glow-bleu';
 
-    ngOnInit(): void {
-        this.service.filtres().subscribe({ next: (f) => this.filtres.set(f) });
-        this.service.agence().subscribe({ next: (a) => this.agence.set(a) });
-        this.charger(1);
-    }
+  ngOnInit(): void {
+    this.service.filtres().subscribe({ next: (f) => this.filtres.set(f) });
+    this.service.agence().subscribe({ next: (a) => this.agence.set(a) });
+    this.charger(1);
+  }
 
-    charger(numero: number): void {
-        this.chargement.set(true);
-        this.service.annonces(numero, this.criteres).subscribe({
-            next: (p) => { this.page.set(p); this.chargement.set(false); },
-            error: () => this.chargement.set(false),
-        });
-    }
+  charger(numero: number): void {
+    this.chargement.set(true);
+    this.service.annonces(numero, this.criteres).subscribe({
+      next: (p) => { this.page.set(p); this.chargement.set(false); },
+      error: () => this.chargement.set(false),
+    });
+  }
 
-    rechercher(): void {
-        this.charger(1);
-        document.getElementById('annonces')?.scrollIntoView({ behavior: 'smooth' });
-    }
+  rechercher(): void {
+    this.charger(1);
+    document.getElementById('annonces')?.scrollIntoView({ behavior: 'smooth' });
+  }
 
-    reinitialiser(): void {
-        this.criteres = { recherche: '', quartier: '', type: '', prix_max: null };
-        this.charger(1);
-    }
+  reinitialiser(): void {
+    this.criteres = { recherche: '', quartier: '', type: '', prix_max: null };
+    this.charger(1);
+  }
 
-    filtreActif(): boolean {
-        const c = this.criteres;
-        return !!(c.recherche || c.quartier || c.type || c.prix_max);
-    }
+  filtreActif(): boolean {
+    const c = this.criteres;
+    return !!(c.recherche || c.quartier || c.type || c.prix_max);
+  }
 
-    envoyerContact(): void {
-        this.envoi.set(true);
-        this.contactOk.set(null);
-        this.contactErreur.set(null);
-        const c = this.contact;
-        this.service.contacter({
-            nom: c.nom, email: c.email.trim() || null, telephone: c.telephone.trim() || null,
-            sujet: c.sujet.trim() || null, message: c.message, site_web: c.site_web,
-        }).subscribe({
-            next: (r) => {
-                this.envoi.set(false);
-                this.contactOk.set(r.message);
-                this.contact = { nom: '', email: '', telephone: '', sujet: '', message: '', site_web: '' };
-            },
-            error: (e: HttpErrorResponse) => {
-                this.envoi.set(false);
-                const erreurs = e.error?.errors as Record<string, string[]> | undefined;
-                this.contactErreur.set(e.status === 429
-                    ? 'Trop d’envois en peu de temps. Réessayez dans une minute.'
-                    : erreurs ? Object.values(erreurs)[0]?.[0] : (e.error?.message ?? 'Envoi impossible.'));
-            },
-        });
-    }
+  envoyerContact(): void {
+    this.envoi.set(true);
+    this.contactOk.set(null);
+    this.contactErreur.set(null);
+    const c = this.contact;
+    this.service.contacter({
+      nom: c.nom, email: c.email.trim() || null, telephone: c.telephone.trim() || null,
+      sujet: c.sujet.trim() || null, message: c.message, site_web: c.site_web,
+    }).subscribe({
+      next: (r) => {
+        this.envoi.set(false);
+        this.contactOk.set(r.message);
+        this.contact = { nom: '', email: '', telephone: '', sujet: '', message: '', site_web: '' };
+      },
+      error: (e: HttpErrorResponse) => {
+        this.envoi.set(false);
+        const erreurs = e.error?.errors as Record<string, string[]> | undefined;
+        this.contactErreur.set(e.status === 429
+          ? 'Trop d’envois en peu de temps. Réessayez dans une minute.'
+          : erreurs ? Object.values(erreurs)[0]?.[0] : (e.error?.message ?? 'Envoi impossible.'));
+      },
+    });
+  }
 
-    montant(v: number | string): string {
-        return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(v) || 0) + ' FCFA';
-    }
+  montant(v: number | string): string {
+    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(v) || 0) + ' FCFA';
+  }
 }
